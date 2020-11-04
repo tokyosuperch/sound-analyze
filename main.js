@@ -1,16 +1,19 @@
 main();
+var threshold=50;
+var pca9865;
+var close = false;
 
 async function main() {
   var head = document.getElementById("head");
   var i2cAccess = await navigator.requestI2CAccess();
   var port = i2cAccess.ports.get(1);
-  var pca9685 = new PCA9685(port, 0x40);
+  pca9685 = new PCA9685(port, 0x40);
   var angle = 0;
   // console.log("angle"+angle);
   // servo setting for sg90
   // Servo PWM pulse: min=0.0011[sec], max=0.0019[sec] angle=+-60[deg]
   await pca9685.init(0.001, 0.002, 30);
-  for (;;) {
+  /* for (;;) {
     angle = angle <= -30 ? 30 : -30;
     // console.log("angle"+angle);
     await pca9685.setServo(0, angle);
@@ -18,7 +21,7 @@ async function main() {
     // console.log('value:', angle);
     head.innerHTML = angle;
     await sleep(1000);
-  }
+  } */
 }
 
 window.onload = function() {
@@ -68,8 +71,34 @@ const init = async function() {
         peak[1] = i;
       }
     }
+    text.innerHTML = Math.round(peak[1] * audio.sampleRate / analyser.fftSize) + "Hz<br />大きさ:" + ( '000' + peak[0] ).slice( -3 ) + " " + threshold;
+    if((peak[1] * audio.sampleRate / analyser.fftSize) < 500 && (peak[1] * audio.sampleRate / analyser.fftSize) > 400) { 
+      if (!close) {
+        threshold++; 
+      } else {
+        threshold=0;
+      }
+    } else if((peak[1] * audio.sampleRate / analyser.fftSize) >= 500 || (peak[1] * audio.sampleRate / analyser.fftSize) <= 400) { 
+      if (close) {
+        threshold++; 
+      } else {
+        threshold=0;
+      }
+    }
+    if(threshold >= 150) {
+      if (!close) {
+        pca9685.setServo(0, 30);
+        pca9685.setServo(1, 30);
+        console.log("moved!");
+      } else {
+        pca9685.setServo(0, 0);
+        pca9685.setServo(1, 0);
+        console.log("moved!");
+      }
+      close = !close;
+      threshold = 0;
+    }
     requestAnimationFrame(draw);
-    text.innerHTML = Math.round(peak[1] * audio.sampleRate / analyser.fftSize) + "Hz<br />大きさ:" + ( '000' + peak[0] ).slice( -3 );;
   }
   draw()
 }
