@@ -1,5 +1,5 @@
 main();
-var threshold=50;
+var threshold=0;
 var pca9865;
 var close = false;
 
@@ -70,9 +70,24 @@ const init = async function() {
         peak[0] = n;
         peak[1] = i;
       }
+      if (!close) {
+        if (audio.sampleRate / analyser.fftSize * i > 9000 && buf[i] > 50) {
+          threshold++;
+          break;
+        }
+        if(i ==buflen-1) threshold=0; 
+      } else {
+        if (audio.sampleRate / analyser.fftSize * i > 9000) {
+          if(buf[i] > 75) {
+            threshold=0;
+            break;
+          }
+          if(i ==buflen-1) threshold++; 
+        }
+      }
     }
     text.innerHTML = Math.round(peak[1] * audio.sampleRate / analyser.fftSize) + "Hz<br />大きさ:" + ( '000' + peak[0] ).slice( -3 ) + " " + threshold;
-    if((peak[1] * audio.sampleRate / analyser.fftSize) < 500 && (peak[1] * audio.sampleRate / analyser.fftSize) > 400) { 
+    /* if((peak[1] * audio.sampleRate / analyser.fftSize) < 500 && (peak[1] * audio.sampleRate / analyser.fftSize) > 400) { 
       if (!close) {
         threshold++; 
       } else {
@@ -84,8 +99,8 @@ const init = async function() {
       } else {
         threshold=0;
       }
-    }
-    if(threshold >= 150) {
+    } */
+    if(threshold >= 50) {
       if (!close) {
         pca9685.setServo(0, 30);
         pca9685.setServo(1, 30);
