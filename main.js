@@ -1,7 +1,7 @@
 main();
 var threshold=0;
 var pca9865;
-var close = false;
+var close = true;
 
 async function main() {
   var head = document.getElementById("head");
@@ -12,7 +12,7 @@ async function main() {
   // console.log("angle"+angle);
   // servo setting for sg90
   // Servo PWM pulse: min=0.0011[sec], max=0.0019[sec] angle=+-60[deg]
-  await pca9685.init(0.001, 0.002, 30);
+  await pca9685.init(0.001, 0.002, 0);
   /* for (;;) {
     angle = angle <= -30 ? 30 : -30;
     // console.log("angle"+angle);
@@ -46,7 +46,10 @@ const init = async function() {
   }
   const audio = new (window.AudioContext || window.webkitAudioContext)()
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  // Create a new volume meter and connect it.
+  meter = createAudioMeter(audio);
   const source = audio.createMediaStreamSource(stream)
+  source.connect(meter);
   const analyser = audio.createAnalyser() // FFT
   //analyser.minDecibels = -90
   //analyser.maxDecibels = -10
@@ -70,23 +73,20 @@ const init = async function() {
         peak[0] = n;
         peak[1] = i;
       }
-      if (!close) {
-        if (audio.sampleRate / analyser.fftSize * i > 9000 && buf[i] > 50) {
+      if (close) {
+        if (meter.volume > 0.01) {
           threshold++;
           break;
+        } else { 
+          threshold = 0;
         }
-        if(i ==buflen-1) threshold=0; 
       } else {
-        if (audio.sampleRate / analyser.fftSize * i > 9000) {
-          if(buf[i] > 75) {
-            threshold=0;
-            break;
-          }
-          if(i ==buflen-1) threshold++; 
+        if (meter.volume < 0.01) {
+          threshold++;
         }
       }
     }
-    text.innerHTML = Math.round(peak[1] * audio.sampleRate / analyser.fftSize) + "Hz<br />大きさ:" + ( '000' + peak[0] ).slice( -3 ) + " " + threshold;
+    text.innerHTML = Math.round(peak[1] * audio.sampleRate / analyser.fftSize) + "Hz<br />当該周波数帯の占める大きさ:" + ( '000' + peak[0] ).slice( -3 ) + " " + threshold + "<br />音の大きさ:" + meter.volume.toFixed(5);
     /* if((peak[1] * audio.sampleRate / analyser.fftSize) < 500 && (peak[1] * audio.sampleRate / analyser.fftSize) > 400) { 
       if (!close) {
         threshold++; 
@@ -101,7 +101,7 @@ const init = async function() {
       }
     } */
     if(threshold >= 50) {
-      if (!close) {
+      if (close) {
         pca9685.setServo(0, 30);
         pca9685.setServo(1, 30);
         console.log("moved!");
